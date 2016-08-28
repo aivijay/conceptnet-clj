@@ -1,0 +1,108 @@
+;;
+;; (:rel :features :license :sources :start :surfaceText :source_uri :weight :id :surfaceEnd
+;;
+
+[{:db/id #db/id[:db.part/db]
+  :db/ident :cnet/rel
+  :db/valueType :db.type/string
+  :db/cardinality :db.cardinality/one
+  :db/doc "the URI of the predicate (relation) of this assertion"
+  :db.install/_attribute :db.part/db}
+
+ {:db/id #db/id[:db.part/db]
+  :db/ident :cnet/features
+  :db/valueType :db.type/ref
+  :db/cardinality :db.cardinality/many
+  :db/doc "a list of three identifiers for features, which are essentially assertions with one of their three components missing. These can be useful in machine learning for inferring missing data"
+  :db.install/_attribute :db.part/db}
+
+ {:db/id #db/id[:db.part/db]
+  :db/ident :cnet/license
+  :db/valueType :db.type/string
+  :db/cardinality :db.cardinality/one
+  :db/doc "a URI representing the Creative Commons license that governs this data"
+  :db.install/_attribute :db.part/db}
+
+ {:db/id #db/id[:db.part/db]
+  :db/ident :cnet/sources
+  :db/valueType :db.type/ref
+  :db/cardinality :db.cardinality/many
+  :db/doc "the sources that, when combined, say that this assertion should be true (or not true, if the weight is negative)"
+  :db.install/_attribute :db.part/db}
+
+ {:db/id #db/id[:db.part/db]
+  :db/ident :cnet/start
+  :db/valueType :db.type/string
+  :db/cardinality :db.cardinality/one
+  :db/doc "the URI of the first argument of the assertion"
+  :db.install/_attribute :db.part/db}
+
+ {:db/id #db/id[:db.part/db]
+  :db/ident :cnet/surfaceText
+  :db/valueType :db.type/string
+  :db/cardinality :db.cardinality/one
+  :db/doc "the original natural language text that expressed this statement"
+  :db.install/_attribute :db.part/db}
+
+ {:db/id #db/id[:db.part/db]
+  :db/ident :cnet/source_uri
+  :db/valueType :db.type/string
+  :db/cardinality :db.cardinality/one
+  :db/doc "ConceptNet source_uri"
+  :db.install/_attribute :db.part/db}
+
+ {:db/id #db/id[:db.part/db]
+  :db/ident :cnet/weight
+  :db/valueType :db.type/double
+  :db/cardinality :db.cardinality/one
+  :db/doc "the strength with which this edge expresses this assertion. A typical weight is 1, but weights can be higher, lower, or even negative"
+  :db.install/_attribute :db.part/db}
+
+ {:db/id #db/id[:db.part/db]
+  :db/ident :cnet/id
+  :db/valueType :db.type/string
+  :db/cardinality :db.cardinality/one
+  :db/doc "The unique ID for this edge, which contains a SHA-1 hash of the information that makes it unique"
+  :db.install/_attribute :db.part/db}
+
+ {:db/id #db/id[:db.part/db]
+  :db/ident :cnet/surfaceEnd
+  :db/valueType :db.type/string
+  :db/cardinality :db.cardinality/one
+  :db/doc "ConceptNet surfaceEnd"
+  :db.install/_attribute :db.part/db}
+
+ {:db/id #db/id[:db.part/db]
+  :db/ident :cnet/context
+  :db/valueType :db.type/string
+  :db/cardinality :db.cardinality/one
+  :db/doc "not used in ConceptNet 5.2. The value is always \"/ctx/all\" for compatibility"
+  :db.install/_attribute :db.part/db}
+
+ {:db/id #db/id[:db.part/db]
+  :db/ident :cnet/surfaceStart
+  :db/valueType :db.type/string
+  :db/cardinality :db.cardinality/one
+  :db/doc "ConceptNet surfaceStart"
+  :db.install/_attribute :db.part/db}
+
+ {:db/id #db/id[:db.part/db]
+  :db/ident :cnet/uri
+  :db/valueType :db.type/string
+  :db/cardinality :db.cardinality/one
+  :db/doc "The URI of the assertion being expressed. The uri is unique among assertions, but not among edges, because multiple edges can bundle together to express the same assertion"
+  :db.install/_attribute :db.part/db}
+
+ {:db/id #db/id[:db.part/db]
+  :db/ident :cnet/end
+  :db/valueType :db.type/string
+  :db/cardinality :db.cardinality/one
+  :db/doc "the URI of the second argument of the assertion"
+  :db.install/_attribute :db.part/db}
+
+ {:db/id #db/id[:db.part/db]
+  :db/ident :cnet/dataset
+  :db/valueType :db.type/string
+  :db/cardinality :db.cardinality/one
+  :db/doc "a URI representing the dataset, or the batch of data from a particular source that created this edge"
+  :db.install/_attribute :db.part/db}]
