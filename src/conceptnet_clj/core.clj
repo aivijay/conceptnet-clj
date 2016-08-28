@@ -88,4 +88,4 @@
        (d/db conn)
        concept-name))
 
-(pp/pprint (find-concepts-for-concept "Clojure"))
+(find-concepts-for-concept "Clojure")
