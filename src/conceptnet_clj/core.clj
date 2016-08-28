@@ -60,6 +60,14 @@
 (add-cn-data d1)
 (add-cn-data d2)
 
+;;
+;; add-cn-records - add a list of maps of conceptnet data
+;;
+(defn add-cn-records [records]
+  (doseq [record records] (prn record) (add-cn-data record)))
+
+(add-cn-records data)
+
 (defn find-all-concepts []
   (d/q '[:find ?concept ?surfaceStart
          :where [?eid :cnet/surfaceText ?concept]
@@ -81,4 +89,3 @@
        concept-name))
 
 (pp/pprint (find-concepts-for-concept "Clojure"))
-
