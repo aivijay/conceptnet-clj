@@ -9,6 +9,15 @@ Visualize the graphs and relations on a ClojureScript frontend as the applicatio
 
 Use the clojure api to interact with Conceptnet 5 as a graph from within datomic.
 
+## Trying it out
+
+```
+lein repl
+```
+```
+(use 'conceptnet-clj.core)
+(find-all-concepts-for-concept "Clojure")
+```
 ## License
 
 Copyright © 2016
