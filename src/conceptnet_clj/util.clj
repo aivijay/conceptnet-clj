@@ -28,7 +28,7 @@
     (apply log src args)))
 
 (defn group-seq
-  "This is a lazy very of group-by. Instead of returning a map, it returns a
+  "This is a lazy version of group-by. Instead of returning a map, it returns a
   seq of [key [value]] pairs."
   [key-fn coll]
   (let [step (fn step [xs]
