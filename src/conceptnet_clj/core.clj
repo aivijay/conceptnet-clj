@@ -1,44 +1,16 @@
 (ns conceptnet-clj.core
   (:require [cheshire.core :refer :all])
   (:require [clojure.pprint :as pp])
-  (:require [datomic.api :as d]))
+  (:require [datomic.api :as d :refer [q db]]
+            [clojure.string :refer [split join] :as str]
+            [clojure.zip :as zip]
+            [conceptnet-clj.util :refer :all]
+            [conceptnet-clj.search :refer [bidirectional-bfs]])
+  (:import datomic.Datom))
 
-(def conceptnet-clojure-file "data/conceptnet-en-clojure.jsons")
+;; -------- Add conceptnet data with a single entity id ---------------------------------------------------
 
-(first (parse-string (slurp conceptnet-clojure-file) true))
-
-(def data (parse-string (slurp conceptnet-clojure-file) true))
-
-(pp/pprint  (take 3 data))
-
-(keys (first data))
-
-(def d1 (first data))
-(def d2 (second data))
-
-;; A record from conceptnet5
-;;
-;; (:rel :features :license :sources :start :surfaceText :source_uri :weight :id :surfaceEnd :context :surfaceStart :uri :end :dataset)
-;;
-
-;; Database connection
-;; datomic:free://localhost:4334/<DB-NAME>
-(def uri "datomic:free://localhost:4334/conceptnet")
-
-(defn create-empty-db [uri]
-  (d/create-database uri)
-  (let [conn (d/connect uri)
-        schema (load-file "resources/datomic/schema.edn")]
-    (d/transact conn schema)
-    conn))
-
-;; Create conceptnet db
-(create-empty-db uri)
-
-(def conn (d/connect uri))
-
-;; ------------ Query functions -------------
-(defn add-cn-data [cn-data]
+(defn add-cn-data [conn cn-data]
   (let [cn-id (d/tempid :db.part/user)]
     (println (str "cn-id=" cn-id))
     (pp/pprint cn-data)
@@ -57,35 +29,182 @@
                         :cnet/end (:end cn-data)
                         :cnet/dataset (:dataset cn-data)}])))
 
-(add-cn-data d1)
-(add-cn-data d2)
+(defn add-cn-records [conn records]
+  (doseq [record records] (prn record) (add-cn-data conn record)))
 
-;;
-;; add-cn-records - add a list of maps of conceptnet data
-;;
-(defn add-cn-records [records]
-  (doseq [record records] (prn record) (add-cn-data record)))
+;; ------------------ Needs refinement to concept net and cleanup ---------------------
+(defprotocol Eid
+  (e [_]))
 
-(add-cn-records data)
+(extend-protocol Eid
+  java.lang.Long
+  (e [i] i)
 
-(defn find-all-concepts []
-  (d/q '[:find ?concept ?surfaceStart
-         :where [?eid :cnet/surfaceText ?concept]
-         [?eid :cnet/surfaceStart ?surfaceStart]]
-       (d/db conn)))
+  datomic.Entity
+  (e [ent] (:db/id ent)))
 
-(find-all-concepts)
+(def acted-with-rules
+  '[[(acted-with ?e1 ?e2 ?path)
+     [?e1 :actor/movies ?m]
+     [?e2 :actor/movies ?m]
+     [(!= ?e1 ?e2)]
+     [(vector ?e1 ?m ?e2) ?path]]
+    [(acted-with-1 ?e1 ?e2 ?path)
+     (acted-with ?e1 ?e2 ?path)]
+    [(acted-with-2 ?e1 ?e2 ?path)
+     (acted-with ?e1 ?x ?pp)
+     (acted-with ?x ?e2 ?p2)
+     [(butlast ?pp) ?p1]
+     [(concat ?p1 ?p2) ?path]]
+    [(acted-with-3 ?e1 ?e2 ?path)
+     (acted-with-2 ?e1 ?x ?pp)
+     (acted-with ?x ?e2 ?p2)
+     [(butlast ?pp) ?p1]
+     [(concat ?p1 ?p2) ?path]]
+    [(acted-with-4 ?e1 ?e2 ?path)
+     (acted-with-3 ?e1 ?x ?pp)
+     (acted-with ?x ?e2 ?p2)
+     [(butlast ?pp) ?p1]
+     [(concat ?p1 ?p2) ?path]]])
 
-(defn find-concepts-for-concept [concept-name]
-  (d/q '[:find ?concept ?surfaceStart ?rel ?surfaceEnd
-         :in $ ?concept-name
-         :where (or [?eid :cnet/surfaceStart ?concept-name]
-                    [?eid :cnet/surfaceEnd ?concept-name])
-         [?eid :cnet/surfaceText ?concept]
-         [?eid :cnet/surfaceStart ?surfaceStart]
-         [?eid :cnet/surfaceEnd ?surfaceEnd]
-         [?eid :cnet/rel ?rel]]
-       (d/db conn)
-       concept-name))
+(defn actor-or-movie-name [db eid]
+  (let [ent (d/entity db (e eid))]
+    (or (:movie/title ent) (:person/name ent))))
 
-(find-concepts-for-concept "Clojure")
+(defn referring-to
+  "Find all entities referring to an eid as a certain attribute."
+  [db eid]
+  (->> (d/datoms db :vaet (e eid))
+       (map :e)))
+
+(defn eids-with-attr-val
+  "Return eids with a given attribute and value."
+  [db attr val]
+  (->> (d/datoms db :avet attr val)
+       (map :e)))
+
+(defn eid->actor-name
+  "db is database value
+  name is the actor's name"
+  [db eid]
+  (-> (d/entity db (e eid))
+      :person/name))
+
+(defn actor-search
+  "Returns set with exact match, if found. Otherwise query will
+  be formatted with format-query passed as-is to Lucene"
+  [db query]
+  (if (str/blank? query)
+    #{}
+    (if-let [eid (d/entid db [:person/name query])]
+      [{:name query :actor-id eid}]
+      (mapv #(zipmap [:actor-id :name] %)
+            (q '[:find ?e ?name
+                 :in $ ?search
+                 :where [(fulltext $ :person/name ?search) [[?e ?name]]]]
+               db (format-query query))))))
+
+(defn movie-actors
+  "Given a datomic database value and a movie id,
+  returns ids for actors in that movie."
+  [db eid]
+  (map :e (d/datoms db :vaet eid :actor/movies)))
+
+(defn actor-movies
+  "Given a datomic database value and an actor id,
+  returns ids for movies that actor was in."
+  [db eid]
+  (map :v (d/datoms db :eavt eid :actor/movies)))
+
+(defn immediate-connections
+  "d is database value
+  eid is actor's entity id"
+  [db eid]
+  (->> (actor-movies db eid)
+       (mapcat (partial referring-to db))))
+
+(defn neighbors
+  "db is database value
+  eid is an actor or movie eid"
+  [db eid]
+  (or (seq (actor-movies db (e eid)))
+      (seq (movie-actors db (e eid)))))
+
+(defn zipper
+  "db is database value
+  eid is actor's entity id"
+  [db eid]
+  (let [children (partial immediate-connections db)
+        branch? (comp seq children)
+        make-node (fn [_ c] c)]
+    (zip/zipper branch? children make-node eid)))
+
+(defn search [db start end]
+  (let [s (partial actor-search db)
+        starts (s start)
+        ends (s end)]
+    (for [p1 starts, p2 ends]
+      [p1 p2])))
+
+(defn path-at-depth [db source target depth]
+  (let [rule (symbol (str "acted-with-" depth))]
+    (q (concat '[:find ?path
+                 :in $ % ?actor ?target
+                 :where]
+               [(list rule '?actor '?target '?path)])
+       db acted-with-rules source target)))
+
+(defn ascending-years? [annotated-node]
+  (if-let [years (->> annotated-node
+                      (map :year)
+                      (filter identity)
+                      seq)]
+    (apply <= years)
+    true))
+
+(defn is-documentary? [entity]
+  (let [genres (:movie/genre entity)]
+    (and genres (contains? genres :movie.genre/documentary))))
+
+(defn without-documentaries
+  "Returns a function suitable for use with datomic.api/filter"
+  [db]
+  (let [movies-attr (d/entid db :actor/movies)
+        has-documentaries? (fn [db ^Datom datom]
+                             (and (= movies-attr (.a datom))
+                                  (is-documentary? (d/entity db (.v datom)))))]
+    (fn [db ^Datom datom]
+      (not (or (has-documentaries? db datom)
+               (is-documentary? (d/entity db (.e datom))))))))
+
+(defn find-id-paths [db source target]
+  (let [filt (without-documentaries db)
+        fdb (d/filter db filt)]
+    (bidirectional-bfs source target (partial neighbors fdb))))
+
+(defn find-annotated-paths
+  [db source target]
+  (let [ename (partial actor-or-movie-name db)
+        annotate-node (fn [node]
+                        (let [ent (d/entity db node)]
+                          {:type (if (:person/name ent) "actor" "movie")
+                           :year (:movie/year ent)
+                           :name (ename ent)
+                           :entity ent}))]
+    (->> (find-id-paths db source target)
+         (map (partial mapv annotate-node)))))
+
+(defn annotate-search [db search hard-mode]
+  (let [[result1 result2] search
+        paths (find-annotated-paths db (:actor-id result1) (:actor-id result2))
+        paths (if hard-mode
+                (filter ascending-years? paths)
+                paths)
+        total (count paths)
+        bacon-number (int (/ (-> paths first count) 2))]
+    {:total total
+     :paths paths
+     :start (:name result1)
+     :end   (:name result2)
+     :bacon-number bacon-number
+     :hard-mode? hard-mode}))
