@@ -54,12 +54,12 @@
 (def data-clojure (parse-string (slurp conceptnet-clojure-file) true))
 
 (defn import-sample-data
-  "Transacts the sample data from `resources/sample.edn` into current
+  "Transacts the sample data from `data/sample.jsons` into current
   system's database connection. Assumes top-level system var has an active
   database connection."
   []
   { :pre (:conn (:db system)) }
   (let [conn (-> system :db :conn)
-        concepts (parse-string (slurp "resources/sample.jsons") true)]
+        concepts (parse-string (slurp "data/sample.jsons") true)]
     @(d/transact conn concepts)
     :ok))
