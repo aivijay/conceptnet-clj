@@ -3,7 +3,7 @@
             [datomic.api :as d]
             [noir.util.cache :refer [cache!]]
             [conceptnet-clj.core :as s]
-            [conceptnet.views :as views]))
+            [conceptnet-clj.views :as views]))
 
 (noir.util.cache/set-timeout! 600) ; 10 minutes
 (noir.util.cache/set-size! 1000)
