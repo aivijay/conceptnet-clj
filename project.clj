@@ -32,7 +32,10 @@
                         :compiler {:pretty-printer true,
                                    :output-to "www/js/main.js",
                                    :optimizations :whitespace}}]}
-  :profiles {:dev
+  :profiles {:uberjar
+             {:ring {:open-browser? false :stacktraces? false :auto-reload? false}
+              :dependencies [[com.datomic/datomic-pro "0.9.5206" :exclusions [joda-time]]]}
+             :dev
              {:source-paths ["dev" "src"]
               :dependencies [[com.datomic/datomic-free "0.9.5350" :exclusions [joda-time]]
                              [org.clojure/tools.namespace "0.2.11"]
@@ -40,4 +43,5 @@
                              [javax.servlet/servlet-api "2.5"]
                              [ring-mock "0.1.5"]]
               :datomic {:config "resources/datomic/free-transactor-template.properties"
-                        :db-uri "datomic:free://localhost:4334/conceptnet"}}})
+                        :db-uri "datomic:free://localhost:4334/conceptnet"}}}
+  :jvm-opts ["-Xmx4g" "-server"])
