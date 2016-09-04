@@ -1,6 +1,5 @@
 *.class
 *.jar
-/.lein-*
 /.nrepl-port
 /.repl
 /checkouts/
@@ -14,5 +13,5 @@ figwheel_server.log
 pom.xml
 pom.xml.asc
 /docs
-/.idea
+.idea/
 conceptnet-clj.iml
