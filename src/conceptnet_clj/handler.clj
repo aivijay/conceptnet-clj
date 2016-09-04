@@ -1,4 +1,4 @@
-(ns kevin.handler
+(ns conceptnet-clj.handler
   (:require [compojure.core :refer [defroutes routes]]
             [compojure.handler :as handler]
             [compojure.route :as route]

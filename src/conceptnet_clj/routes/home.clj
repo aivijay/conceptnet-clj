@@ -1,4 +1,4 @@
-(ns kevin.routes.home
+(ns conceptnet-clj.routes.home
   (:require [compojure.core :refer :all]
             [datomic.api :as d]
             [noir.util.cache :refer [cache!]]
@@ -11,10 +11,10 @@
 (defn home []
   (cache! :home
     (views/main-template
-      :body (views/form "Kevin Bacon (I)" nil nil))))
+      :body (views/form "ConceptNet" nil nil))))
 
 (defn- cache-key [search hard-mode]
-  (conj (mapv :actor-id (first search)) hard-mode))
+  (conj (mapv :conceptnet-id (first search)) hard-mode))
 
 (defn search [context {:keys [person1 person2 hard-mode] :as params}]
   (let [db (-> context :db :conn d/db)

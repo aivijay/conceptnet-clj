@@ -1,4 +1,4 @@
-(ns kevin.views
+(ns conceptnet-clj.views
   (:require [hiccup.util :refer [url]]
             [clojure.string :as str]
             [conceptnet-clj.util :refer :all]
