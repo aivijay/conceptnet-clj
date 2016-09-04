@@ -11,8 +11,7 @@
             [clojure.java.io :as io]))
 
 (defn- ensure-schema [conn]
-  (or (-> conn d/db (d/entid :cnet/name))
-      @(d/transact conn (read-string (slurp "resources/schema.edn")))))
+  @(d/transact conn (read-string (slurp "resources/datomic/schema.edn"))))
 
 (defn- ensure-db [db-uri]
   (let [newdb? (d/create-database db-uri)
