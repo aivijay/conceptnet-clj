@@ -1,6 +1,8 @@
 (ns conceptnet-clj.util
   (:require [clojure.string :as string]
-            [clojure.set :as set]))
+            [clojure.set :as set])
+  (:require [clojure.string :refer [split join] :as str])
+  (:import [com.datomic.lucene.queryParser QueryParser]))
 
 (defn mean [coll]
   (let [accum (fn [[sum size] n]
@@ -60,3 +62,27 @@
 (defn set-diff [a b]
   [(set/difference a b) (set/difference b a)])
 
+;; -------------------- Ref ---------------------------
+(defn- tokenize-query [q]
+  (let [escaped (QueryParser/escape q)]
+    (if (= q escaped)
+      (str "+" escaped "*")
+      (str "+" escaped))))
+
+(defn format-query
+  "Makes each word of query required, front-stemmed.
+   Escapes all special characters.
+
+  (format-query \"Foo bar\")
+   ;=> \"+Foo* +bar*\"
+
+  This maps to Lucene's QueryParser.parse
+  See http://lucene.apache.org/core/3_6_1/api/core/org/apache/lucene/queryParser/QueryParser.html"
+  [query]
+  (->> (split query #",?\s+")
+       (remove str/blank?)
+       (map tokenize-query)
+       (join " ")))
+
+(defn format-name [name]
+  (str/replace-first name #"^([^,]+), (.+?)( \([IVX]+\))?$" "$2 $1$3"))
