@@ -1,41 +1,89 @@
 (ns conceptnet-clj.system
-  (:require
-    [conceptnet-clj.graph :as graph]
-    [conceptnet-clj.conceptnet :as conceptnet]
-    [conceptnet-clj.dot :as dot]
-    [conceptnet-clj.util :as u]
-    [clojure.java.io :as io]))
+  (:require [datomic.api :as d]
+            [conceptnet-clj.handler :as handler]
+            [clojure.tools.nrepl.server :as repl]
+            [environ.core :refer [env]]
+            [ring.server.standalone :refer (serve)]
+            [conceptnet-clj.graph :as graph]
+            [conceptnet-clj.conceptnet :as conceptnet]
+            [conceptnet-clj.dot :as dot]
+            [conceptnet-clj.util :as u]
+            [clojure.java.io :as io]))
 
-(def ^:dynamic *conceptnet-dir* "./data")
+(defn- ensure-schema [conn]
+  (or (-> conn d/db (d/entid :cnet/name))
+      @(d/transact conn (read-string (slurp "resources/schema.edn")))))
 
-(defn system []
-  {:db-config [:local false nil]
-   :ego-dir *conceptnet-dir*
-   :graph-opened false
-   :graph nil})
+(defn- ensure-db [db-uri]
+  (let [newdb? (d/create-database db-uri)
+        conn (d/connect db-uri)]
+    (ensure-schema conn)
+    conn))
+
+(defn start-db [system]
+  (let [db (:db system)
+        conn (ensure-db (:uri db))]
+    (assoc-in system [:db :conn] conn)))
+
+(defn- stop-db [system]
+  (when-let [conn (:conn (:db system))]
+    (d/release conn))
+  (assoc-in system [:db :conn] nil))
+
+(defn- start-repl [system]
+  (let [repl-server (repl/start-server :port (get-in system [:repl :port]))]
+    (assoc-in system [:repl :server] repl-server)))
+
+(defn- stop-repl [system]
+  (when-let [repl-server (get-in system [:repl :server])]
+    (repl/stop-server repl-server))
+  (assoc-in system [:repl :server] nil))
+
+(defn- setup-handler [system]
+  (let [web-opts (:web system)
+        handler (handler/app system)]
+    (assoc-in system [:web :handler] handler)))
+
+(defn- teardown-handler [system]
+  (assoc-in system [:web :handler] nil))
+
+(defn system
+  "Returns a new instance of the whole application."
+  []
+  {:db {:uri (env :datomic-db-url)}
+   :web {:open-browser? false}
+   :repl {:port 7888}})
 
 (defn start
-  ([system] (start system false))
-  ([system load-conceptnet]
-   (u/log :system :start)
-   (let [edges (conceptnet/read-edge-files (:conceptnet-dir system))]
-     (assoc system
-       :graph-opened true
-       :graph edges))))
+  "Performs side effects to initialize the system, acquire resources,
+  and start it running. Returns an updated instance of the system."
+  [system]
+  (-> system
+      start-db
+      start-repl
+      setup-handler))
 
-(defn stop [system]
-  (u/log :system :stop)
-  (assoc system :graph-opened false))
+(defn stop
+  "Performs side effects to shut down the system and release its
+  resources. Returns an updated instance of the system."
+  [system]
+  (when system
+    (-> system
+        teardown-handler
+        stop-repl
+        stop-db)))
 
-(defn read-n [n system]
-  (let [read-lines (fn [file-name]
-                     (with-open [f (io/reader file-name)]
-                       (doall (line-seq f))))
-        conceptnet-dir (str (:conceptnet-dir system) "/")]
-    (assoc system
-      (keyword (str "conceptnet-" n))
-      {:circles (read-lines (str conceptnet-dir n ".circles"))
-       :graph (read-lines (str conceptnet-dir n ".edges"))
-       :conceptnet-feat (read-lines (str conceptnet-dir n ".conceptnetfeat"))
-       :conceptnet (read-lines (str conceptnet-dir n ".conceptnet"))
-       :concept-names (read-lines (str conceptnet-dir n ".conceptnetnames"))})))
+;; external ring handlers
+(defonce sys nil)
+(defonce handler nil)
+
+(defn destroy []
+  (let [s (stop sys)]
+    (alter-var-root #'sys nil)
+    (alter-var-root #'handler nil)))
+
+(defn init []
+  (let [s (start (system))]
+    (alter-var-root #'sys (constantly s))
+    (alter-var-root #'handler (constantly (get-in s [:web :handler])))
+    s))
