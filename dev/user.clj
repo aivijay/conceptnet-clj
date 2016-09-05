@@ -10,7 +10,8 @@
             [conceptnet-clj.system :as sys]
             [conceptnet-clj.expunge]
             [conceptnet-clj.core :refer :all]
-            [conceptnet-clj.search :refer :all]))
+            [conceptnet-clj.search :refer :all]
+            [cheshire.core :refer :all]))
 
 (defonce system nil)
 
@@ -42,7 +43,7 @@
     (alter-var-root #'system sys/stop)))
 
 (defn go
-  "Initializes the current development system and starts it running."
+    "Initializes the current development system and starts it running."
   []
   (init)
   (start))
@@ -51,15 +52,13 @@
   (stop)
   (refresh :after 'user/go))
 
-(def data-clojure (parse-string (slurp conceptnet-clojure-file) true))
-
 (defn import-sample-data
   "Transacts the sample data from `data/sample.jsons` into current
-  system's database connection. Assumes top-level system var has an active
-  database connection."
+      system's database connection. Assumes top-level system var has an active
+      database connection."
   []
-  { :pre (:conn (:db system)) }
+  {:pre (:conn (:db system))}
   (let [conn (-> system :db :conn)
         concepts (parse-string (slurp "data/sample.jsons") true)]
-    @(d/transact conn concepts)
+    (add-cn-records conn concepts)
     :ok))
