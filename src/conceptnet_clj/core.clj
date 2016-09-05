@@ -69,7 +69,7 @@
 
 (defn actor-or-movie-name [db eid]
   (let [ent (d/entity db (e eid))]
-    (or (:movie/title ent) (:person/name ent))))
+    (or (:cnet/end ent) (:cnet/start ent))))
 
 (defn referring-to
   "Find all entities referring to an eid as a certain attribute."
@@ -88,7 +88,7 @@
   name is the actor's name"
   [db eid]
   (-> (d/entity db (e eid))
-      :person/name))
+      :cnet/start))
 
 (defn actor-search
   "Returns set with exact match, if found. Otherwise query will
@@ -96,12 +96,12 @@
   [db query]
   (if (str/blank? query)
     #{}
-    (if-let [eid (d/entid db [:person/name query])]
+    (if-let [eid (d/entid db [:cnet/start query])]
       [{:name query :actor-id eid}]
       (mapv #(zipmap [:actor-id :name] %)
             (q '[:find ?e ?name
                  :in $ ?search
-                 :where [(fulltext $ :person/name ?search) [[?e ?name]]]]
+                 :where [(fulltext $ :cnet/start ?search) [[?e ?name]]]]
                db (format-query query))))))
 
 (defn movie-actors
@@ -187,7 +187,7 @@
   (let [ename (partial actor-or-movie-name db)
         annotate-node (fn [node]
                         (let [ent (d/entity db node)]
-                          {:type (if (:person/name ent) "actor" "movie")
+                          {:type (if (:cnet/cnet ent) "actor" "movie")
                            :year (:movie/year ent)
                            :name (ename ent)
                            :entity ent}))]
