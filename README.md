@@ -24,7 +24,7 @@ empty datomic database named conceptnet.
 
 ## Import
 
-1. At a REPL, after you've run `(go)`, run the following:
+1. At a REPL, run the following:
 ```
 (go)
 ```
