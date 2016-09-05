@@ -11,7 +11,8 @@
             [conceptnet-clj.expunge]
             [conceptnet-clj.core :refer :all]
             [conceptnet-clj.search :refer :all]
-            [cheshire.core :refer :all]))
+            [cheshire.core :refer :all]
+            [conceptnet-clj.system :as system]))
 
 (defonce system nil)
 
@@ -51,6 +52,11 @@
 (defn reset []
   (stop)
   (refresh :after 'user/go))
+
+(defn reset-db []
+  (when system
+    (init)
+    (alter-var-root #'system sys/reset-db)))
 
 (defn import-sample-data
   "Transacts the sample data from `data/sample.jsons` into current

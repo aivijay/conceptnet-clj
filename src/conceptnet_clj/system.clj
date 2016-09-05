@@ -14,10 +14,13 @@
   @(d/transact conn (read-string (slurp "resources/datomic/schema.edn"))))
 
 (defn- ensure-db [db-uri]
+  (d/delete-database db-uri)
   (let [newdb? (d/create-database db-uri)
         conn (d/connect db-uri)]
     (ensure-schema conn)
     conn))
+
+
 
 (defn start-db [system]
   (let [db (:db system)
@@ -71,6 +74,14 @@
         teardown-handler
         stop-repl
         stop-db)))
+
+(defn reset-db [system]
+  (let [db-uri (:uri (:db system))]
+    (println "Resetting conceptnet db ...")
+    (ensure-db db-uri))
+  (-> system
+      stop-db
+      start-db))
 
 ;; external ring handlers
 (defonce sys nil)
