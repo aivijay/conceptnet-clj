@@ -14,7 +14,7 @@
   (let [cn-id (d/tempid :db.part/user)]
     (println (str "cn-id=" cn-id))
     (pp/pprint cn-data)
-    @(d/transact conn [{:db/id cn-id
+    @(d/transact conn [{:db/id #db/id[:db.part/user -1000001]
                         :cnet/rel (:rel cn-data)
                         :cnet/license (:license cn-data)
                         :cnet/start (:start cn-data)
@@ -42,6 +42,57 @@
 
   datomic.Entity
   (e [ent] (:db/id ent)))
+
+(defn qe
+  "Returns the single entity returned by a query."
+  [query db & args]
+  (let [res (apply d/q query db args)]
+    (d/entity db (only res))))
+
+(defn find-by
+  "Returns the unique entity identified by attr and val."
+  [db attr val]
+  (qe '[:find ?e
+        :in $ ?attr ?val
+        :where [?e ?attr ?val]]
+      db attr val))
+
+(defn qes
+  "Returns the entities returned by a query, assuming that
+   all :find results are entity ids."
+  [query db & args]
+  (->> (apply d/q query db args)
+       (mapv (fn [items]
+               (mapv (partial d/entity db) items)))))
+
+(defn find-all-by
+  "Returns all entities possessing attr."
+  [db attr]
+  (qes '[:find ?e
+         :in $ ?attr
+         :where [?e ?attr]]
+       db attr))
+
+(defn qfs
+  "Returns the first of each query result."
+  [query db & args]
+  (->> (apply d/q query db args)
+       (mapv first)))
+
+(defn modes
+  "Returns the set of modes."
+  [coll]
+  (->> (frequencies coll)
+       (reduce
+         (fn [[modes ct] [k v]]
+           (cond
+             (< v ct)  [modes ct]
+             (= v ct)  [(conj modes k) ct]
+             (> v ct) [#{k} v]))
+         [#{} 2])
+       first))
+
+
 
 (def acted-with-rules
   '[[(acted-with ?e1 ?e2 ?path)
